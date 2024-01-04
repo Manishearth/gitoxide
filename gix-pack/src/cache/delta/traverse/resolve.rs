@@ -26,10 +26,7 @@ mod root {
     impl<'a, T: Send> Node<'a, T> {
         /// SAFETY: The child_items must be unique among between users of the `ItemSliceSync`.
         #[allow(unsafe_code)]
-        pub(in crate::cache::delta::traverse) unsafe fn new(
-            item: &'a mut Item<T>,
-            child_items: &'a ItemSliceSync<'a, Item<T>>,
-        ) -> Self {
+        pub(super) unsafe fn new(item: &'a mut Item<T>, child_items: &'a ItemSliceSync<'a, Item<T>>) -> Self {
             Node { item, child_items }
         }
     }
@@ -71,13 +68,17 @@ mod root {
     }
 }
 
-pub(in crate::cache::delta::traverse) struct State<'items, F, MBFN, T: Send> {
+pub(super) struct State<'items, F, MBFN, T: Send> {
     pub delta_bytes: Vec<u8>,
     pub fully_resolved_delta_bytes: Vec<u8>,
     pub progress: Box<dyn Progress>,
     pub resolve: F,
     pub modify_base: MBFN,
-    pub child_items: &'items ItemSliceSync<'items, Item<T>>,
+    /// SAFETY: This member is essentially a `&mut [Item<T>]` that is shared between threads
+    ///         and that assumes that no two thread will see overlapping portions of it.
+    ///         This is assured by the way the tree threads are fed with work, which is
+    ///         described in detail in [ItemSliceSync].
+    pub(super) child_items: &'items ItemSliceSync<'items, Item<T>>,
 }
 
 #[allow(clippy::too_many_arguments)]
